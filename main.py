@@ -6,6 +6,7 @@ os.environ['SDL_VIDEO_CENTERED'] = '1'
 
 SIZE = WIDTH, HEIGHT = 800, 600
 GRAY = (128, 128, 128)
+block = False
 
 pg.init()
 pg.display.set_caption('Rally')
@@ -25,6 +26,7 @@ cars = [pg.image.load('Image/car1.png'), pg.image.load('Image/car2.png'), pg.ima
 class Player(pg.sprite.Sprite):
     def __init__(self):
         pg.sprite.Sprite.__init__(self)
+
         self.image = pg.image.load('Image/car4.png')
         self.orig_image = self.image
         self.angle = 0
@@ -41,15 +43,59 @@ class Player(pg.sprite.Sprite):
         self.position += self.velocity
         self.rect.center = self.position
 
+        keys = pg.key.get_pressed()
+        if keys[pg.K_RIGHT]:
+            self.velocity.x = self.speed
+            self.angle -= 1
+            if self.angle < -25:
+                self.angle = -25 
+        elif keys[pg.K_LEFT]:
+            self.velocity.x = -self.speed
+            self.angle += 1
+            if self.angle > 25:
+                self.angle = 25    
+        else:
+            self.velocity.x = 0
+            if self.angle < 0:
+                self.angle += 1
+            elif self.angle > 0:
+                self.angle -= 1
+        if keys[pg.K_UP]:
+            self.velocity.y -= self.acceleration          
+            if self.velocity.y < -self.speed:
+                self.velocity.y = self.speed       
+        elif keys[pg.K_DOWN]:
+            self.velocity.y += self.acceleration          
+            if self.velocity.y > self.speed:
+                self.velocity.y = self.speed
+        else:
+            if self.velocity.y > 0:
+                self.velocity.y -= self.acceleration
+                if self.velocity.y < 0:
+                    self.velocity.y = 0
 
 class Car(pg.sprite.Sprite):
     def __init__(self, x, y, img):
         pg.sprite.Sprite.__init__(self)
 
         self.image = pg.transform.flip(img, False, True)
-        # self.w, self.h = self.image.get_width(), self.image.get_height()
         self.speed = random.randint(2, 3)
         self.rect = self.image.get_rect(center=(x, y))
+
+    def update(self):
+        self.rect.y += self.speed
+        if self.rect.top >= HEIGHT:
+            self.rect.bottom = 0
+
+            list_x.remove(self.rect.centerx)
+            while True:
+                self.rect.centerx = random.randrange(80, WIDTH, 80)
+                if self.rect.centerx in list_x:
+                    continue
+                else:
+                    list_x.append(self.rect.centerx)
+                    self.speed = random.randrange(2, 3)
+                    break
 
 
 play = Player()
@@ -79,13 +125,15 @@ class Road(pg.sprite.Sprite):
     def update(self):
         self.rect.y += self.speed
         if self.rect.top >= HEIGHT:
-            self.rect.bottom = 0
+            self.rect.bottom = 0        
 
 
 all_sprite = pg.sprite.Group()
+cars_group = pg.sprite.Group()
 for r in range(2):
     all_sprite.add(Road(0, 0 if r == 0 else -HEIGHT))
 player = Player()
+
 list_x = []
 n = 0
 while n < 6:
@@ -94,15 +142,24 @@ while n < 6:
         continue
     else:
         list_x.append(x)
-    all_sprite.add(Car(x, -cars[0].get_height(), random.choice(cars)))
+    cars_group.add(Car(x, -cars[0].get_height(), random.choice(cars)))
     n += 1
-all_sprite.add(player)
+
+all_sprite.add(cars_group, player)
 
 game = True
 while game:
     for e in pg.event.get():
         if e.type == pg.QUIT:
             game = False
+
+    if pg.sprite.spritecollideany(player, cars_group):
+        if not block:
+            player.position[0] += 50 * random.randrange(-1, 2, 2)
+            player.angle = 50 * random.randrange(-1, 2, 2)
+            block = True
+    else:
+        block = False
 
     all_sprite.update()
     all_sprite.draw(screen)
